@@ -1,6 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { type Complaint, type ComplaintStatus } from '@/types/complaint';
+import { toast } from 'sonner'; // Add this import if using sonner
+// OR
+// import { toast } from "@/components/ui/use-toast"; // If using shadcn/ui toast
 
 interface User {
   id: string;
@@ -87,6 +90,8 @@ type ComplaintsContextType = {
   addComplaint: (c: { userId: string; title: string; description: string; type: string }) => Promise<void>;
   updateComplaintStatus: (id: number, status: ComplaintStatus) => Promise<void>;
   getComplaintsByUser: (userId: string) => Complaint[];
+  updateComplaint: (id: number, data: { title: string; description: string; type: string }) => Promise<void>;
+  deleteComplaint: (id: number) => Promise<void>;
 };
 
 const ComplaintsContext = createContext<ComplaintsContextType | undefined>(undefined);
@@ -143,6 +148,47 @@ export const ComplaintsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   });
 
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: { title: string; description: string; type: string } }) => {
+      const res = await fetch(`${API}/api/complaints/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error('Failed to update complaint');
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['complaints'] });
+    }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`${API}/api/complaints/${id}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || 'Failed to delete complaint');
+      }
+      return id; // Return the deleted ID
+    },
+    onSuccess: (deletedId) => {
+      // Immediately update the cache to remove the deleted complaint
+      qc.setQueryData(['complaints'], (old: Complaint[] | undefined) => {
+        if (!old) return [];
+        return old.filter(complaint => complaint.id !== deletedId);
+      });
+      // Also invalidate the query to refetch from server
+      qc.invalidateQueries({ queryKey: ['complaints'] });
+    },
+    onError: (error) => {
+      console.error('Delete mutation error:', error);
+      toast.error('Failed to delete complaint');
+    }
+  });
+
   const addComplaint = async (c: { userId: string; title: string; description: string; type: string }) => {
     await createMutation.mutateAsync(c);
   };
@@ -151,20 +197,28 @@ export const ComplaintsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     await statusMutation.mutateAsync({ id, status });
   };
 
+  const updateComplaint = async (id: number, data: { title: string; description: string; type: string }) => {
+    await updateMutation.mutateAsync({ id, data });
+  };
+
+  const deleteComplaint = async (id: number) => {
+    await deleteMutation.mutateAsync(id);
+  };
+
   const getComplaintsByUser = (userId: string) => {
     return complaints.filter(c => String(c.userId) === String(userId));
   };
 
   return (
-    <ComplaintsContext.Provider 
-      value={{ 
-        complaints, 
-        isLoading, 
-        addComplaint, 
-        updateComplaintStatus, 
-        getComplaintsByUser 
-      }}
-    >
+    <ComplaintsContext.Provider value={{
+      complaints,
+      isLoading,
+      deleteComplaint,
+      addComplaint, 
+      updateComplaintStatus, 
+      getComplaintsByUser,
+      updateComplaint
+    }}>
       {children}
     </ComplaintsContext.Provider>
   );

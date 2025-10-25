@@ -82,3 +82,35 @@ export const updateComplaintStatus = async (req: Request, res: Response) => {
     res.status(500).json({ error: "Failed to update complaint status" });
   }
 };
+
+// ✏️ Update complaint details
+export const updateComplaint = async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params.id);
+    const { title, description, type } = req.body;
+    
+    const complaint = await prisma.complaint.update({
+      where: { id },
+      data: { title, description, type }
+    });
+    
+    res.json(complaint);
+  } catch (error) {
+    console.error('Error updating complaint:', error);
+    res.status(500).json({ error: 'Failed to update complaint' });
+  }
+};
+
+// ❌ Delete a complaint
+export const deleteComplaint = async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params.id);
+    await prisma.complaint.delete({
+      where: { id }
+    });
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting complaint:', error);
+    res.status(500).json({ error: 'Failed to delete complaint' });
+  }
+};
