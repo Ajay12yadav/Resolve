@@ -30,7 +30,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (email: string, password: string) => {
-    // Mock login - in production this would call your backend
+    // Mock login - replace with backend call in production
     await new Promise(resolve => setTimeout(resolve, 500));
     
     const mockUser: User = {
@@ -45,7 +45,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signup = async (email: string, password: string, fullName: string) => {
-    // Mock signup - in production this would call your backend
+    // Mock signup - replace with backend call in production
     await new Promise(resolve => setTimeout(resolve, 500));
     
     const mockUser: User = {

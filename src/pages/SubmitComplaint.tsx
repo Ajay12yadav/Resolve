@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useComplaints } from '@/contexts/ComplaintsContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,6 +13,7 @@ import { MessageSquare, ArrowLeft } from 'lucide-react';
 
 const SubmitComplaint = () => {
   const { user } = useAuth();
+  const { addComplaint } = useComplaints();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -25,11 +27,23 @@ const SubmitComplaint = () => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Mock submission - would call backend API in production
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    try {
+      // Use the addComplaint function from ComplaintsContext
+      await addComplaint({
+        userId: user?.id || '',
+        title: formData.title,
+        description: formData.description,
+        type: formData.category,
+      });
 
-    toast.success('Complaint submitted successfully!');
-    navigate('/dashboard');
+      toast.success('Complaint submitted successfully!');
+      navigate('/dashboard');
+    } catch (error) {
+      console.error('Failed to submit complaint:', error);
+      toast.error('Failed to submit complaint. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleChange = (field: string, value: string) => {

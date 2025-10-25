@@ -1,55 +1,64 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useComplaints } from '@/contexts/ComplaintsContext';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ComplaintCard, Complaint } from '@/components/ComplaintCard';
+import { ComplaintCard } from '@/components/ComplaintCard';
 import { MessageSquare, Plus, LogOut } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { type Complaint, type ComplaintStatus } from '@/types/complaint';
+import React from 'react';
 
 const UserDashboard = () => {
   const { user, logout } = useAuth();
+  const { complaints, isLoading } = useComplaints();
   const navigate = useNavigate();
 
-  // Mock data - would come from backend in production
-  const [complaints] = useState<Complaint[]>([
-    {
-      id: '1',
-      title: 'Website Loading Speed Issue',
-      description: 'The website takes too long to load on mobile devices. Pages take over 5 seconds to display content.',
-      category: 'Technical',
-      status: 'in_progress',
-      createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-      updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-    },
-    {
-      id: '2',
-      title: 'Payment Gateway Not Working',
-      description: 'Unable to complete payment. Transaction fails at the final step with error code 500.',
-      category: 'Billing',
-      status: 'pending',
-      createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-      updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-    },
-    {
-      id: '3',
-      title: 'Customer Support Response Time',
-      description: 'Submitted a support ticket 3 days ago but haven\'t received any response yet.',
-      category: 'Service',
-      status: 'resolved',
-      createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
-      updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-    },
-  ]);
+  // Filter complaints for the logged-in user
+  const userComplaints = React.useMemo(() => {
+    if (!user?.id) {
+      console.log('No user ID found yet');
+      return [];
+    }
+
+    const currentUserId = String(user.id);
+
+    const filtered = (complaints || []).filter(complaint => {
+      const complaintUserId = String(complaint.userId);
+      const matches = complaintUserId === currentUserId;
+
+      console.log('Filtering complaint:', {
+        complaintId: complaint.id,
+        complaintUserId,
+        currentUserId,
+        matches
+      });
+
+      return matches;
+    });
+
+    console.log('Filtered complaints for user:', filtered);
+    return filtered;
+  }, [complaints, user?.id]);
+
+  // Filter complaints by status
+  const filterByStatus = (status?: ComplaintStatus) => {
+    if (!status) return userComplaints;
+    return userComplaints.filter(c => c.status === status);
+  };
 
   const handleLogout = () => {
     logout();
     navigate('/');
   };
 
-  const filterByStatus = (status?: string) => {
-    if (!status) return complaints;
-    return complaints.filter(c => c.status === status);
-  };
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-subtle flex items-center justify-center">
+        <div className="text-center">Loading complaints...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
@@ -91,7 +100,7 @@ const UserDashboard = () => {
           {/* Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="bg-card border border-border rounded-lg p-4 shadow-card">
-              <div className="text-2xl font-bold">{complaints.length}</div>
+              <div className="text-2xl font-bold">{userComplaints.length}</div>
               <div className="text-sm text-muted-foreground">Total</div>
             </div>
             <div className="bg-card border border-border rounded-lg p-4 shadow-card">
@@ -124,9 +133,15 @@ const UserDashboard = () => {
             </TabsList>
 
             <TabsContent value="all" className="space-y-4">
-              {complaints.map(complaint => (
-                <ComplaintCard key={complaint.id} complaint={complaint} />
-              ))}
+              {userComplaints.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  No complaints found. Click "Submit Complaint" to create one.
+                </div>
+              ) : (
+                userComplaints.map(complaint => (
+                  <ComplaintCard key={complaint.id} complaint={complaint} />
+                ))
+              )}
             </TabsContent>
 
             <TabsContent value="pending" className="space-y-4">
