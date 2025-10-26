@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { MessageSquare } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const Auth = () => {
   const [searchParams] = useSearchParams();
@@ -15,6 +16,7 @@ const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [role, setRole] = useState<'user' | 'admin'>('user');
   const [isLoading, setIsLoading] = useState(false);
   const { login, signup } = useAuth();
   const navigate = useNavigate();
@@ -26,15 +28,20 @@ const Auth = () => {
     try {
       if (mode === 'login') {
         await login(email, password);
-        toast.success('Welcome back!');
-        navigate(email.includes('admin') ? '/admin' : '/dashboard');
       } else {
-        await signup(email, password, fullName);
-        toast.success('Account created successfully!');
-        navigate('/dashboard');
+        await signup({
+          email,
+          password,
+          fullName,
+          role
+        });
       }
+      
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      navigate(user.role === 'admin' ? '/admin-dashboard' : '/dashboard');
     } catch (error) {
-      toast.error('Authentication failed. Please try again.');
+      console.error('Auth error:', error);
+      toast.error(error instanceof Error ? error.message : 'Authentication failed');
     } finally {
       setIsLoading(false);
     }
@@ -67,17 +74,31 @@ const Auth = () => {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               {mode === 'signup' && (
-                <div className="space-y-2">
-                  <Label htmlFor="fullName">Full Name</Label>
-                  <Input
-                    id="fullName"
-                    type="text"
-                    placeholder="John Doe"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    required
-                  />
-                </div>
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="fullName">Full Name</Label>
+                    <Input
+                      id="fullName"
+                      type="text"
+                      placeholder="John Doe"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Account Type</Label>
+                    <Select value={role} onValueChange={(value: 'user' | 'admin') => setRole(value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select account type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="user">User</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
               )}
               
               <div className="space-y-2">

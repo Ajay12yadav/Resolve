@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { ComplaintsProvider } from "./contexts/ComplaintsContext";
 import Landing from "./pages/Landing";
@@ -14,19 +14,23 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-const ProtectedRoute = ({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) => {
+// Protected route wrapper
+const ProtectedRoute = ({ 
+  children, 
+  allowedRoles 
+}: { 
+  children: React.ReactNode, 
+  allowedRoles: string[] 
+}) => {
   const { user, isLoading } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
 
-  if (!user) {
-    return <Navigate to="/auth" replace />;
-  }
-
-  if (adminOnly && user.role !== 'admin') {
-    return <Navigate to="/dashboard" replace />;
+  if (!user || !allowedRoles.includes(user.role)) {
+    return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
   return <>{children}</>;
@@ -37,20 +41,44 @@ const AppRoutes = () => {
 
   return (
     <Routes>
-      <Route path="/" element={user ? <Navigate to={user.role === 'admin' ? '/admin' : '/dashboard'} replace /> : <Landing />} />
-      <Route path="/auth" element={!user ? <Auth /> : <Navigate to={user.role === 'admin' ? '/admin' : '/dashboard'} replace />} />
+      <Route 
+        path="/" 
+        element={
+          user ? (
+            <Navigate 
+              to={user.role === 'admin' ? '/admin-dashboard' : '/dashboard'} 
+              replace 
+            />
+          ) : (
+            <Landing />
+          )
+        } 
+      />
+      <Route 
+        path="/auth" 
+        element={
+          !user ? (
+            <Auth />
+          ) : (
+            <Navigate 
+              to={user.role === 'admin' ? '/admin-dashboard' : '/dashboard'} 
+              replace 
+            />
+          )
+        } 
+      />
       <Route
         path="/dashboard"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={['user']}>
             <UserDashboard />
           </ProtectedRoute>
         }
       />
       <Route
-        path="/admin"
+        path="/admin-dashboard"
         element={
-          <ProtectedRoute adminOnly>
+          <ProtectedRoute allowedRoles={['admin']}>
             <AdminDashboard />
           </ProtectedRoute>
         }
@@ -58,7 +86,7 @@ const AppRoutes = () => {
       <Route
         path="/submit-complaint"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={['user']}>
             <SubmitComplaint />
           </ProtectedRoute>
         }
