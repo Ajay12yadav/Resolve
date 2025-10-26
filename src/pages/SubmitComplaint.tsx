@@ -1,26 +1,23 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useComplaints } from '@/contexts/ComplaintsContext';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+import { MessageSquare, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { toast } from 'sonner';
-import { MessageSquare, ArrowLeft } from 'lucide-react';
 
 const SubmitComplaint = () => {
   const { user } = useAuth();
-  const { addComplaint } = useComplaints();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    category: '',
+    category: ''
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -28,18 +25,30 @@ const SubmitComplaint = () => {
     setIsSubmitting(true);
 
     try {
-      // Convert userId to string
-      await addComplaint({
-        userId: String(user?.id || ''), // Convert to string
-        title: formData.title,
-        description: formData.description,
-        type: formData.category,
+      const response = await fetch('http://localhost:4000/api/complaints', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          userId: user?.id,
+          title: formData.title,
+          description: formData.description,
+          type: formData.category
+        })
       });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create complaint');
+      }
 
       toast.success('Complaint submitted successfully!');
       navigate('/dashboard');
     } catch (error) {
-      console.error('Failed to submit complaint:', error);
+      console.error('Submission error:', error);
       toast.error('Failed to submit complaint. Please try again.');
     } finally {
       setIsSubmitting(false);

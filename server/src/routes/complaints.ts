@@ -1,13 +1,12 @@
 import { Router } from "express";
-import { listComplaints, getComplaint, createComplaint, updateComplaintStatus, updateComplaint, deleteComplaint } from "../controllers/complaintsController";
+import { listComplaints, listAllComplaints, updateStatus, createComplaint } from "../controllers/complaintsController";
+import { isAdmin } from "../middleware/auth";
 
 const router = Router();
 
-router.get("/", listComplaints); // optional query ?userId=...
-router.get("/:id", getComplaint);
-router.post("/", createComplaint);
-router.patch("/:id/status", updateComplaintStatus);
-router.patch('/:id', updateComplaint);
-router.delete('/:id', deleteComplaint);
+router.get("/all", isAdmin, listAllComplaints);
+router.get("/", listComplaints);
+router.patch('/:id/status', isAdmin, updateStatus);
+router.post('/', createComplaint);
 
 export default router;

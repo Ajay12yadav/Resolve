@@ -13,6 +13,15 @@ export const listComplaints = async (req: Request, res: Response) => {
       where: userId ? {
         userId: parseInt(userId)
       } : undefined,
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            fullName: true
+          }
+        }
+      },
       orderBy: {
         createdAt: 'desc'
       }
@@ -21,10 +30,7 @@ export const listComplaints = async (req: Request, res: Response) => {
     res.json(complaints);
   } catch (error) {
     console.error('Error fetching complaints:', error);
-    res.status(500).json({ 
-      error: 'Failed to fetch complaints',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    });
+    res.status(500).json({ error: 'Failed to fetch complaints' });
   }
 };
 
@@ -49,10 +55,14 @@ export const createComplaint = async (req: Request, res: Response) => {
     console.log("Received complaint:", req.body);
     const { userId, title, description, type } = req.body;
 
+    // Validate required fields
     if (!userId || !title || !description || !type) {
-      return res.status(400).json({ error: "Missing required fields" });
+      return res.status(400).json({
+        error: 'Missing required fields'
+      });
     }
 
+    // Create complaint
     const complaint = await prisma.complaint.create({
       data: {
         userId: parseInt(userId),
@@ -61,28 +71,47 @@ export const createComplaint = async (req: Request, res: Response) => {
         type,
         status: 'pending' as ComplaintStatus,
       },
+      include: {
+        user: {
+          select: {
+            fullName: true,
+            email: true
+          }
+        }
+      }
     });
 
     console.log("Created complaint:", complaint);
     res.status(201).json(complaint);
   } catch (error) {
-    console.error("Error creating complaint:", error);
-    res.status(500).json({ error: "Failed to create complaint" });
+    console.error('Create complaint error:', error);
+    res.status(500).json({
+      error: 'Failed to create complaint',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 };
 
 // 🔄 Update complaint status
-export const updateComplaintStatus = async (req: Request, res: Response) => {
+export const updateStatus = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { status } = req.body as { status: ComplaintStatus };
+    const { status } = req.body;
 
-    const updatedComplaint = await prisma.complaint.update({
+    const complaint = await prisma.complaint.update({
       where: { id: parseInt(id) },
-      data: { status }
+      data: { status },
+      include: {
+        user: {
+          select: {
+            fullName: true,
+            email: true
+          }
+        }
+      }
     });
 
-    res.json(updatedComplaint);
+    res.json(complaint);
   } catch (error) {
     console.error('Error updating complaint status:', error);
     res.status(500).json({ error: 'Failed to update complaint status' });
@@ -118,5 +147,29 @@ export const deleteComplaint = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error deleting complaint:', error);
     res.status(500).json({ error: 'Failed to delete complaint' });
+  }
+};
+
+// 🧾 List all complaints
+export const listAllComplaints = async (req: Request, res: Response) => {
+  try {
+    const complaints = await prisma.complaint.findMany({
+      include: {
+        user: {
+          select: {
+            fullName: true,
+            email: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    res.json(complaints);
+  } catch (error) {
+    console.error('Error fetching all complaints:', error);
+    res.status(500).json({ error: 'Failed to fetch complaints' });
   }
 };

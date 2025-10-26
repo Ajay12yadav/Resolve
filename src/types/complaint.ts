@@ -1,13 +1,16 @@
-export type ComplaintStatus = "pending" | "in_progress" | "resolved" | "rejected";
+export type ComplaintStatus = "pending" | "in_progress" | "resolved";
 
 export interface Complaint {
   id: number;
-  userId: string;
-  userEmail?: string;
+  userId: number;
   title: string;
   description: string;
-  category?: string;
   type: string;
   status: ComplaintStatus;
   createdAt: string;
+  user: {
+    id: number;
+    email: string;
+    fullName: string;
+  };
 }

@@ -13,37 +13,8 @@ const UserDashboard = () => {
   const { complaints, isLoading } = useComplaints();
   const navigate = useNavigate();
 
-  // Filter complaints for the logged-in user
-  const userComplaints = React.useMemo(() => {
-    if (!user?.id) {
-      console.log('No user ID found yet');
-      return [];
-    }
-
-    const currentUserId = String(user.id);
-
-    const filtered = (complaints || []).filter(complaint => {
-      const complaintUserId = String(complaint.userId);
-      const matches = complaintUserId === currentUserId;
-
-      console.log('Filtering complaint:', {
-        complaintId: complaint.id,
-        complaintUserId,
-        currentUserId,
-        matches
-      });
-
-      return matches;
-    });
-
-    console.log('Filtered complaints for user:', filtered);
-    return filtered;
-  }, [complaints, user?.id]);
-
-  // Filter complaints by status
-  const filterByStatus = (status?: ComplaintStatus) => {
-    if (!status) return userComplaints;
-    return userComplaints.filter(c => c.status === status);
+  const filterByStatus = (status: ComplaintStatus) => {
+    return complaints.filter(complaint => complaint.status === status);
   };
 
   const handleLogout = () => {
@@ -100,8 +71,8 @@ const UserDashboard = () => {
           {/* Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="bg-card border border-border rounded-lg p-4 shadow-card">
-              <div className="text-2xl font-bold">{userComplaints.length}</div>
-              <div className="text-sm text-muted-foreground">Total</div>
+              <div className="text-2xl font-bold">{complaints.length}</div>
+              <div className="text-sm text-muted-foreground">Total Complaints</div>
             </div>
             <div className="bg-card border border-border rounded-lg p-4 shadow-card">
               <div className="text-2xl font-bold text-yellow-600">
@@ -124,44 +95,17 @@ const UserDashboard = () => {
           </div>
 
           {/* Complaints List */}
-          <Tabs defaultValue="all" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="all">All</TabsTrigger>
-              <TabsTrigger value="pending">Pending</TabsTrigger>
-              <TabsTrigger value="in_progress">In Progress</TabsTrigger>
-              <TabsTrigger value="resolved">Resolved</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="all" className="space-y-4">
-              {userComplaints.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  No complaints found. Click "Submit Complaint" to create one.
-                </div>
-              ) : (
-                userComplaints.map(complaint => (
-                  <ComplaintCard key={complaint.id} complaint={complaint} />
-                ))
-              )}
-            </TabsContent>
-
-            <TabsContent value="pending" className="space-y-4">
-              {filterByStatus('pending').map(complaint => (
+          <div className="space-y-4">
+            {complaints.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8">
+                No complaints filed yet. Click "Submit Complaint" to get started.
+              </div>
+            ) : (
+              complaints.map(complaint => (
                 <ComplaintCard key={complaint.id} complaint={complaint} />
-              ))}
-            </TabsContent>
-
-            <TabsContent value="in_progress" className="space-y-4">
-              {filterByStatus('in_progress').map(complaint => (
-                <ComplaintCard key={complaint.id} complaint={complaint} />
-              ))}
-            </TabsContent>
-
-            <TabsContent value="resolved" className="space-y-4">
-              {filterByStatus('resolved').map(complaint => (
-                <ComplaintCard key={complaint.id} complaint={complaint} />
-              ))}
-            </TabsContent>
-          </Tabs>
+              ))
+            )}
+          </div>
         </div>
       </main>
     </div>

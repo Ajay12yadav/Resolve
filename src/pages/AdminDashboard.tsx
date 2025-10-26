@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useComplaints } from '@/contexts/ComplaintsContext';
-import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+import { type Complaint, type ComplaintStatus } from '@/types/complaint';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { type Complaint, type ComplaintStatus } from '@/types/complaint';
 import { AdminComplaintCard } from '../components/AdminComplaintCard';
 import {
   Dialog,
@@ -25,12 +24,38 @@ import {
   LogOut
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useNavigate } from 'react-router-dom';
 
 const AdminDashboard = () => {
+  const [complaints, setComplaints] = useState<Complaint[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const { user, logout } = useAuth();
-  const { complaints, isLoading, updateComplaintStatus } = useComplaints();
   const navigate = useNavigate();
   const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
+
+  const fetchComplaints = async () => {
+    try {
+      const res = await fetch('http://localhost:4000/api/complaints/all', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (!res.ok) throw new Error('Failed to fetch complaints');
+      
+      const data = await res.json();
+      setComplaints(data);
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('Failed to load complaints');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchComplaints();
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -39,9 +64,31 @@ const AdminDashboard = () => {
 
   const handleStatusUpdate = async (id: number, status: ComplaintStatus) => {
     try {
-      await updateComplaintStatus(id, status);
+      const response = await fetch(`http://localhost:4000/api/complaints/${id}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ status })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update status');
+      }
+
+      // Update local state
+      setComplaints(complaints.map(complaint => 
+        complaint.id === id ? { ...complaint, status } : complaint
+      ));
+
+      toast.success('Status updated successfully');
+      
+      // Refresh complaints list
+      fetchComplaints();
     } catch (error) {
       console.error('Failed to update status:', error);
+      toast.error('Failed to update status');
     }
   };
 
@@ -79,6 +126,56 @@ const AdminDashboard = () => {
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
+
+  const renderComplaintsList = (complaints: Complaint[]) => (
+    <div className="space-y-4">
+      {complaints.map(complaint => (
+        <div
+          key={complaint.id}
+          className="bg-card border border-border rounded-lg p-6 shadow-sm hover:shadow-md transition-all"
+        >
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h3 className="font-semibold text-lg">{complaint.title}</h3>
+              <div className="mt-1">
+                <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(complaint.status)}`}>
+                  {complaint.status.replace('_', ' ')}
+                </span>
+              </div>
+            </div>
+            <Select
+              value={complaint.status}
+              onValueChange={(value: ComplaintStatus) => handleStatusUpdate(complaint.id, value)}
+            >
+              <SelectTrigger className="w-[140px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="in_progress">In Progress</SelectItem>
+                <SelectItem value="resolved">Resolved</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <p className="text-muted-foreground mb-4">{complaint.description}</p>
+
+          <div className="flex items-center gap-4 text-sm text-muted-foreground border-t border-border pt-4">
+            <div className="flex items-center gap-2">
+              <User2 className="h-4 w-4" />
+              <span>Filed by: {complaint.user.fullName}</span>
+            </div>
+            <div>•</div>
+            <div>Type: {complaint.type}</div>
+            <div>•</div>
+            <div>
+              Filed on: {new Date(complaint.createdAt).toLocaleDateString()}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 
   if (!user || user.role !== 'admin') {
     return <div>Access Denied</div>;
@@ -147,47 +244,19 @@ const AdminDashboard = () => {
             </TabsList>
 
             <TabsContent value="all" className="space-y-4">
-              {complaints.map(complaint => (
-                <AdminComplaintCard
-                  key={complaint.id}
-                  complaint={complaint}
-                  onStatusChange={handleStatusUpdate}
-                  onClick={() => handleComplaintClick(complaint)}
-                />
-              ))}
+              {renderComplaintsList(complaints)}
             </TabsContent>
 
             <TabsContent value="pending" className="space-y-4">
-              {filterByStatus('pending').map(complaint => (
-                <AdminComplaintCard
-                  key={complaint.id}
-                  complaint={complaint}
-                  onStatusChange={handleStatusUpdate}
-                  onClick={() => handleComplaintClick(complaint)}
-                />
-              ))}
+              {renderComplaintsList(filterByStatus('pending'))}
             </TabsContent>
 
             <TabsContent value="in_progress" className="space-y-4">
-              {filterByStatus('in_progress').map(complaint => (
-                <AdminComplaintCard
-                  key={complaint.id}
-                  complaint={complaint}
-                  onStatusChange={handleStatusUpdate}
-                  onClick={() => handleComplaintClick(complaint)}
-                />
-              ))}
+              {renderComplaintsList(filterByStatus('in_progress'))}
             </TabsContent>
 
             <TabsContent value="resolved" className="space-y-4">
-              {filterByStatus('resolved').map(complaint => (
-                <AdminComplaintCard
-                  key={complaint.id}
-                  complaint={complaint}
-                  onStatusChange={handleStatusUpdate}
-                  onClick={() => handleComplaintClick(complaint)}
-                />
-              ))}
+              {renderComplaintsList(filterByStatus('resolved'))}
             </TabsContent>
           </Tabs>
 

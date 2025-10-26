@@ -1,23 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
 interface User {
-  id: number;
+  id: string;
   email: string;
   fullName: string;
-  role: string;
+  role: 'user' | 'admin';
 }
-
-interface AuthContextType {
-  user: User | null;
-  isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  signup: (data: SignupData) => Promise<void>; // Changed this line
-  logout: () => void;
-}
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 interface SignupData {
   email: string;
@@ -25,6 +13,18 @@ interface SignupData {
   fullName: string;
   role: 'user' | 'admin';
 }
+
+interface AuthContextType {
+  user: User | null;
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  signup: (data: SignupData) => Promise<void>;
+  logout: () => void;
+}
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
@@ -70,30 +70,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('token', data.token);
   };
 
-  const signup = async ({ email, password, fullName, role }: SignupData) => {
+  const signup = async (data: SignupData) => {
     try {
       setIsLoading(true);
       const res = await fetch(`${API_URL}/api/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, fullName, role }),
+        body: JSON.stringify(data),
       });
 
-      const data = await res.json();
+      const responseData = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Registration failed');
+        throw new Error(responseData.error || 'Failed to create account');
       }
 
-      setUser(data.user);
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
+      setUser(responseData.user);
+      localStorage.setItem('token', responseData.token);
+      localStorage.setItem('user', JSON.stringify(responseData.user));
     } catch (error) {
       console.error('Signup error:', error);
-      if (error instanceof Error) {
-        throw error;
-      }
-      throw new Error('Registration failed - please try again');
+      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -120,16 +117,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
   }
-
-  const isAdmin = context.user?.role === 'admin';
-  const isUser = context.user?.role === 'user';
-
-  return {
-    ...context,
-    isAdmin,
-    isUser
-  };
+  return context;
 };

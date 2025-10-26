@@ -1,88 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { type Complaint, type ComplaintStatus } from '@/types/complaint';
-import { toast } from 'sonner'; // Add this import if using sonner
-// OR
-// import { toast } from "@/components/ui/use-toast"; // If using shadcn/ui toast
-
-interface User {
-  id: string;
-  email: string;
-  fullName: string;
-  role: 'user' | 'admin';
-}
-
-interface AuthContextType {
-  user: User | null;
-  login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string, fullName: string) => Promise<void>;
-  logout: () => void;
-  isLoading: boolean;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-    setIsLoading(false);
-  }, []);
-
-  const login = async (email: string, password: string) => {
-    // Mock login - in production this would call your backend
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    const mockUser: User = {
-      id: '1',
-      email,
-      fullName: email.split('@')[0],
-      role: email.includes('admin') ? 'admin' : 'user'
-    };
-    
-    setUser(mockUser);
-    localStorage.setItem('user', JSON.stringify(mockUser));
-  };
-
-  const signup = async (email: string, password: string, fullName: string) => {
-    // Mock signup - in production this would call your backend
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    const mockUser: User = {
-      id: Date.now().toString(),
-      email,
-      fullName,
-      role: 'user'
-    };
-    
-    setUser(mockUser);
-    localStorage.setItem('user', JSON.stringify(mockUser));
-  };
-
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('user');
-  };
-
-  return (
-    <AuthContext.Provider value={{ user, login, signup, logout, isLoading }}>
-      {children}
-    </AuthContext.Provider>
-  );
-};
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
+import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext'; // Updated import path
 
 type ComplaintsContextType = {
   complaints: Complaint[];
@@ -96,19 +16,37 @@ type ComplaintsContextType = {
 
 const ComplaintsContext = createContext<ComplaintsContextType | undefined>(undefined);
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
 export const ComplaintsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user } = useAuth();
+  const [complaints, setComplaints] = useState<Complaint[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const qc = useQueryClient();
 
-  const { data: complaints = [], isLoading } = useQuery<Complaint[]>({
-    queryKey: ['complaints'],
-    queryFn: async () => {
-      const res = await fetch(`${API}/api/complaints`);
-      if (!res.ok) throw new Error('Failed to fetch complaints');
-      return res.json();
+  const fetchComplaints = async () => {
+    try {
+      if (!user?.id) return;
+
+      const res = await fetch(`${API_URL}/api/complaints?userId=${user.id}`);
+      if (!res.ok) {
+        throw new Error('Failed to fetch complaints');
+      }
+      const data = await res.json();
+      setComplaints(data);
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('Failed to load complaints');
+    } finally {
+      setIsLoading(false);
     }
-  });
+  };
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchComplaints();
+    }
+  }, [user?.id]);
 
   const createMutation = useMutation<
     Complaint,
@@ -116,7 +54,7 @@ export const ComplaintsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     { userId: string; title: string; description: string; type: string }
   >({
     mutationFn: async (payload) => {
-      const res = await fetch(`${API}/api/complaints`, {
+      const res = await fetch(`${API_URL}/api/complaints`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -135,7 +73,7 @@ export const ComplaintsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     { id: number; status: ComplaintStatus }
   >({
     mutationFn: async ({ id, status }) => {
-      const res = await fetch(`${API}/api/complaints/${id}/status`, {
+      const res = await fetch(`${API_URL}/api/complaints/${id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
@@ -150,7 +88,7 @@ export const ComplaintsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: { title: string; description: string; type: string } }) => {
-      const res = await fetch(`${API}/api/complaints/${id}`, {
+      const res = await fetch(`${API_URL}/api/complaints/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -165,7 +103,7 @@ export const ComplaintsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      const res = await fetch(`${API}/api/complaints/${id}`, {
+      const res = await fetch(`${API_URL}/api/complaints/${id}`, {
         method: 'DELETE',
       });
       if (!res.ok) {
