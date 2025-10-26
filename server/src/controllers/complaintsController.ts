@@ -1,5 +1,8 @@
 import { Request, Response } from "express";
-import { prisma } from "../db";
+import { PrismaClient } from "@prisma/client";
+import { ComplaintStatus } from "../types/complaint";
+
+const prisma = new PrismaClient();
 
 // 🧾 List all complaints (optionally filter by userId)
 export const listComplaints = async (req: Request, res: Response) => {
@@ -7,14 +10,21 @@ export const listComplaints = async (req: Request, res: Response) => {
     const userId = req.query.userId as string | undefined;
 
     const complaints = await prisma.complaint.findMany({
-      where: userId ? { userId } : undefined,
-      orderBy: { createdAt: "desc" },
+      where: userId ? {
+        userId: parseInt(userId)
+      } : undefined,
+      orderBy: {
+        createdAt: 'desc'
+      }
     });
 
     res.json(complaints);
   } catch (error) {
-    console.error("Error listing complaints:", error);
-    res.status(500).json({ error: "Failed to list complaints" });
+    console.error('Error fetching complaints:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch complaints',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 };
 
@@ -45,11 +55,11 @@ export const createComplaint = async (req: Request, res: Response) => {
 
     const complaint = await prisma.complaint.create({
       data: {
-        userId: String(userId), // ✅ ensure it’s always a string
+        userId: parseInt(userId),
         title,
         description,
         type,
-        status: "open",
+        status: 'pending' as ComplaintStatus,
       },
     });
 
@@ -64,22 +74,18 @@ export const createComplaint = async (req: Request, res: Response) => {
 // 🔄 Update complaint status
 export const updateComplaintStatus = async (req: Request, res: Response) => {
   try {
-    const id = Number(req.params.id);
-    const { status } = req.body;
+    const { id } = req.params;
+    const { status } = req.body as { status: ComplaintStatus };
 
-    if (!["open", "in_progress", "resolved"].includes(status)) {
-      return res.status(400).json({ error: "Invalid status value" });
-    }
-
-    const complaint = await prisma.complaint.update({
-      where: { id },
-      data: { status },
+    const updatedComplaint = await prisma.complaint.update({
+      where: { id: parseInt(id) },
+      data: { status }
     });
 
-    res.json(complaint);
+    res.json(updatedComplaint);
   } catch (error) {
-    console.error("Error updating complaint status:", error);
-    res.status(500).json({ error: "Failed to update complaint status" });
+    console.error('Error updating complaint status:', error);
+    res.status(500).json({ error: 'Failed to update complaint status' });
   }
 };
 

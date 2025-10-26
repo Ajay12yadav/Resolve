@@ -28,9 +28,9 @@ const SubmitComplaint = () => {
     setIsSubmitting(true);
 
     try {
-      // Use the addComplaint function from ComplaintsContext
+      // Convert userId to string
       await addComplaint({
-        userId: user?.id || '',
+        userId: String(user?.id || ''), // Convert to string
         title: formData.title,
         description: formData.description,
         type: formData.category,

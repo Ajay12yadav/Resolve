@@ -1,0 +1,1 @@
+export type ComplaintStatus = 'pending' | 'in_progress' | 'resolved';
