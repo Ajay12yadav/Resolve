@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { API_URL } from '../lib/config';
 
 interface User {
   id: string;
@@ -22,6 +21,8 @@ interface AuthContextType {
   signup: (data: SignupData) => Promise<void>;
   logout: () => void;
 }
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -71,12 +72,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signup = async (data: SignupData) => {
     try {
+      setIsLoading(true);
       const res = await fetch(`${API_URL}/api/auth/signup`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data)
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
       });
 
       const responseData = await res.json();
