@@ -1,45 +1,50 @@
 import * as dotenv from 'dotenv';
 import path from 'path';
-
-// Load .env from project root
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
-
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
 import authRoutes from './routes/auth';
 import complaintsRoutes from './routes/complaints';
 
-const app = express();
-const prisma = new PrismaClient();
+// Initialize Prisma
+const prisma = new PrismaClient({
+  errorFormat: 'minimal',
+  log: ['error', 'warn']
+});
 
-app.use(cors());
+// Initialize Express
+const app = express();
+
+app.use(cors({
+  origin: [
+    'http://localhost:5173',
+    'https://resolvefrontend.vercel.app',
+    'https://resolvefrontend-n0ts76boc-ajay-yadavs-projects-fd057fd7.vercel.app'
+  ],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization', 'Origin'],
+  exposedHeaders: ['Access-Control-Allow-Origin']
+}));
+
 app.use(express.json());
 
-// Error handling middleware
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('Error:', err.stack);
-  res.status(500).json({
-    error: 'Internal Server Error',
-    message: err.message
-  });
-});
-
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok' });
-});
-
+// Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/complaints', complaintsRoutes);
 
-const PORT = process.env.PORT || 4000;
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+// Health check
+app.get('/api/health', async (req: Request, res: Response) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ status: 'ok', database: 'connected' });
+  } catch (error) {
+    res.status(500).json({ status: 'error', database: 'disconnected' });
+  }
 });
 
-// Handle uncaught errors
-process.on('unhandledRejection', (error: Error) => {
-  console.error('Unhandled Rejection:', error);
+app.get('/', (req: Request, res: Response) => {
+  res.json({ message: 'Resolve API is running' });
 });
+
+export default app;
