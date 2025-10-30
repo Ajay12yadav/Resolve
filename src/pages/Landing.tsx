@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { useNavigate } from 'react-router-dom';
 import { MessageSquare, Shield, CheckCircle, ArrowRight } from 'lucide-react';
 
@@ -13,6 +14,8 @@ const Landing = () => {
           <div className="flex items-center gap-2">
             <MessageSquare className="h-6 w-6 text-primary" />
             <span className="text-xl font-bold">ComplaintHub</span>
+            {/* Theme toggle button next to logo/title */}
+            
           </div>
           <div className="flex gap-3">
             <Button variant="ghost" onClick={() => navigate('/auth')}>
@@ -21,6 +24,7 @@ const Landing = () => {
             <Button onClick={() => navigate('/auth?mode=signup')} className="gradient-primary">
               Get Started
             </Button>
+            <ThemeToggle />
           </div>
         </div>
       </header>

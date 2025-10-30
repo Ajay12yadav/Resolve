@@ -11,6 +11,7 @@ import UserDashboard from "./pages/UserDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import SubmitComplaint from "./pages/SubmitComplaint";
 import NotFound from "./pages/NotFound";
+import React from "react";
 
 const queryClient = new QueryClient();
 
@@ -104,6 +105,7 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <ComplaintsProvider>
+            
             <AppRoutes />
           </ComplaintsProvider>
         </AuthProvider>

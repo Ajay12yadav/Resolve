@@ -101,3 +101,16 @@
     box-shadow: var(--shadow-card);
   }
 }
+
+html.light {
+  --bg: #fff;
+  --text: #222;
+}
+html.dark {
+  --bg: #18181b;
+  --text: #fafafa;
+}
+body {
+  background: var(--bg);
+  color: var(--text);
+}
