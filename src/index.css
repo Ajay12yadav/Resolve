@@ -104,11 +104,11 @@
 
 html.light {
   --bg: #fff;
-  --text: #222;
+  --text: #000000;
 }
 html.dark {
-  --bg: #18181b;
-  --text: #fafafa;
+  --bg: #000000;
+  --text: #f4f0f0;
 }
 body {
   background: var(--bg);

@@ -141,14 +141,7 @@ const Auth = () => {
                 </button>
               </div>
 
-              {mode === 'login' && (
-                <div className="text-xs text-muted-foreground text-center space-y-1 pt-4 border-t">
-                  <p className="font-medium">Demo Credentials:</p>
-                  <p>User: user@example.com</p>
-                  <p>Admin: admin@example.com</p>
-                  <p>Password: any password</p>
-                </div>
-              )}
+              
             </form>
           </CardContent>
         </Card>
