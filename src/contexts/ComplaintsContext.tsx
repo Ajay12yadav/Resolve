@@ -1,8 +1,8 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { type Complaint, type ComplaintStatus } from '@/types/complaint';
 import { toast } from 'sonner';
-import { useAuth } from '@/contexts/AuthContext'; // Updated import path
+import { useAuth } from '@/contexts/AuthContext';
 
 type ComplaintsContextType = {
   complaints: Complaint[];
@@ -20,34 +20,21 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
 export const ComplaintsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
-  const [complaints, setComplaints] = useState<Complaint[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const qc = useQueryClient();
 
-  const fetchComplaints = async () => {
-    try {
-      if (!user?.id) return;
-
+  // ✅ Fetch complaints using React Query
+  const { data: complaints = [], isLoading } = useQuery<Complaint[]>({
+    queryKey: ['complaints', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
       const res = await fetch(`${API_URL}/api/complaints?userId=${user.id}`);
-      if (!res.ok) {
-        throw new Error('Failed to fetch complaints');
-      }
-      const data = await res.json();
-      setComplaints(data);
-    } catch (error) {
-      console.error('Error:', error);
-      toast.error('Failed to load complaints');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      if (!res.ok) throw new Error('Failed to fetch complaints');
+      return res.json();
+    },
+    enabled: !!user?.id, // Only run when user is logged in
+  });
 
-  useEffect(() => {
-    if (user?.id) {
-      fetchComplaints();
-    }
-  }, [user?.id]);
-
+  // ✅ Create Complaint
   const createMutation = useMutation<
     Complaint,
     Error,
@@ -62,11 +49,15 @@ export const ComplaintsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       if (!res.ok) throw new Error('Failed to create complaint');
       return res.json();
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['complaints'] });
-    }
+    onSuccess: (newComplaint) => {
+      // Instantly update cache for instant UI update
+      qc.setQueryData<Complaint[]>(['complaints', user?.id], (old = []) => [newComplaint, ...old]);
+      toast.success('Complaint submitted successfully');
+    },
+    onError: () => toast.error('Failed to submit complaint'),
   });
 
+  // ✅ Update Complaint Status
   const statusMutation = useMutation<
     Complaint,
     Error,
@@ -81,11 +72,16 @@ export const ComplaintsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       if (!res.ok) throw new Error('Failed to update status');
       return res.json();
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['complaints'] });
-    }
+    onSuccess: (updatedComplaint) => {
+      qc.setQueryData<Complaint[]>(['complaints', user?.id], (old = []) =>
+        old.map((c) => (c.id === updatedComplaint.id ? updatedComplaint : c))
+      );
+      toast.success('Complaint status updated');
+    },
+    onError: () => toast.error('Failed to update status'),
   });
 
+  // ✅ Update Complaint
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: { title: string; description: string; type: string } }) => {
       const res = await fetch(`${API_URL}/api/complaints/${id}`, {
@@ -96,37 +92,35 @@ export const ComplaintsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       if (!res.ok) throw new Error('Failed to update complaint');
       return res.json();
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['complaints'] });
-    }
+    onSuccess: (updatedComplaint) => {
+      qc.setQueryData<Complaint[]>(['complaints', user?.id], (old = []) =>
+        old.map((c) => (c.id === updatedComplaint.id ? updatedComplaint : c))
+      );
+      toast.success('Complaint updated successfully');
+    },
+    onError: () => toast.error('Failed to update complaint'),
   });
 
+  // ✅ Delete Complaint
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      const res = await fetch(`${API_URL}/api/complaints/${id}`, {
-        method: 'DELETE',
-      });
+      const res = await fetch(`${API_URL}/api/complaints/${id}`, { method: 'DELETE' });
       if (!res.ok) {
         const error = await res.json();
         throw new Error(error.message || 'Failed to delete complaint');
       }
-      return id; // Return the deleted ID
+      return id;
     },
     onSuccess: (deletedId) => {
-      // Immediately update the cache to remove the deleted complaint
-      qc.setQueryData(['complaints'], (old: Complaint[] | undefined) => {
-        if (!old) return [];
-        return old.filter(complaint => complaint.id !== deletedId);
-      });
-      // Also invalidate the query to refetch from server
-      qc.invalidateQueries({ queryKey: ['complaints'] });
+      qc.setQueryData<Complaint[]>(['complaints', user?.id], (old = []) =>
+        old.filter((c) => c.id !== deletedId)
+      );
+      toast.success('Complaint deleted');
     },
-    onError: (error) => {
-      console.error('Delete mutation error:', error);
-      toast.error('Failed to delete complaint');
-    }
+    onError: () => toast.error('Failed to delete complaint'),
   });
 
+  // ✅ Helper functions
   const addComplaint = async (c: { userId: string; title: string; description: string; type: string }) => {
     await createMutation.mutateAsync(c);
   };
@@ -144,19 +138,21 @@ export const ComplaintsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   const getComplaintsByUser = (userId: string) => {
-    return complaints.filter(c => String(c.userId) === String(userId));
+    return complaints.filter((c) => String(c.userId) === String(userId));
   };
 
   return (
-    <ComplaintsContext.Provider value={{
-      complaints,
-      isLoading,
-      deleteComplaint,
-      addComplaint, 
-      updateComplaintStatus, 
-      getComplaintsByUser,
-      updateComplaint
-    }}>
+    <ComplaintsContext.Provider
+      value={{
+        complaints,
+        isLoading,
+        addComplaint,
+        updateComplaintStatus,
+        getComplaintsByUser,
+        updateComplaint,
+        deleteComplaint,
+      }}
+    >
       {children}
     </ComplaintsContext.Provider>
   );
