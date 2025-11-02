@@ -1,0 +1,37 @@
+
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: complainthub
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  backend:
+    build:
+      context: ./server
+    depends_on:
+      - postgres
+    environment:
+      POSTGRES_PRISMA_URL: "postgresql://postgres:postgres@postgres:5432/complainthub?schema=public"
+    ports:
+      - "4000:4000"
+    env_file:
+      - ./server/.env
+
+  frontend:
+    build:
+      context: .
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+
+volumes:
+  postgres_data:
