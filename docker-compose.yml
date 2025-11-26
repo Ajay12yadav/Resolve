@@ -1,13 +1,11 @@
-
-
 services:
   postgres:
     image: postgres:16-alpine
     restart: always
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: complainthub
+      POSTGRES_PASSWORD: notesApp
+      POSTGRES_DB: resolve_db
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -18,8 +16,11 @@ services:
       context: ./server
     depends_on:
       - postgres
+    restart: always
     environment:
-      POSTGRES_PRISMA_URL: "postgresql://postgres:postgres@postgres:5432/complainthub?schema=public"
+      DATABASE_URL: "postgresql://postgres:notesApp@postgres:5432/resolve_db?schema=public"
+      POSTGRES_PRISMA_URL: "postgresql://postgres:notesApp@postgres:5432/resolve_db?schema=public"
+      PORT: 4000
     ports:
       - "4000:4000"
     env_file:
@@ -30,6 +31,7 @@ services:
       context: .
     depends_on:
       - backend
+    restart: always
     ports:
       - "3000:80"
 
