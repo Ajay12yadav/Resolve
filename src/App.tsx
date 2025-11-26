@@ -18,20 +18,27 @@ const queryClient = new QueryClient();
 // Protected route wrapper
 const ProtectedRoute = ({ 
   children, 
-  allowedRoles 
+  adminOnly = false 
 }: { 
   children: React.ReactNode, 
-  allowedRoles: string[] 
+  adminOnly?: boolean 
 }) => {
   const { user, isLoading } = useAuth();
   const location = useLocation();
 
+  // Show loading state while checking auth
   if (isLoading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
 
-  if (!user || !allowedRoles.includes(user.role)) {
+  // Not logged in - redirect to auth
+  if (!user) {
     return <Navigate to="/auth" state={{ from: location }} replace />;
+  }
+
+  // Admin-only route but user is not admin
+  if (adminOnly && user.role !== 'admin') {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;
@@ -71,7 +78,7 @@ const AppRoutes = () => {
       <Route
         path="/dashboard"
         element={
-          <ProtectedRoute allowedRoles={['user']}>
+          <ProtectedRoute adminOnly={false}>
             <UserDashboard />
           </ProtectedRoute>
         }
@@ -79,7 +86,7 @@ const AppRoutes = () => {
       <Route
         path="/admin-dashboard"
         element={
-          <ProtectedRoute allowedRoles={['admin']}>
+          <ProtectedRoute adminOnly={true}>
             <AdminDashboard />
           </ProtectedRoute>
         }
@@ -87,7 +94,7 @@ const AppRoutes = () => {
       <Route
         path="/submit-complaint"
         element={
-          <ProtectedRoute allowedRoles={['user']}>
+          <ProtectedRoute adminOnly={false}>
             <SubmitComplaint />
           </ProtectedRoute>
         }

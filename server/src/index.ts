@@ -13,7 +13,17 @@ import complaintsRoutes from './routes/complaints';
 const app = express();
 const prisma = new PrismaClient();
 
-app.use(cors());
+// ⭐ FIXED CORS — fully correct for EC2
+app.use(cors({
+  origin: [
+    "http://13.60.185.215:3000",   // EC2 frontend
+    "http://localhost:3000"        // local testing
+  ],
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true
+}));
+
 app.use(express.json());
 
 // Error handling middleware
