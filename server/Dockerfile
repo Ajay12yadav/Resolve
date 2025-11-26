@@ -8,12 +8,10 @@ RUN npm install
 
 COPY . .
 
-# Set Prisma binary targets for Alpine Linux
-ENV PRISMA_CLI_BINARY_TARGETS=linux-musl
-
-# Generate Prisma client for the correct platform
+# Generate Prisma client
 RUN npx prisma generate
 
+# Build TypeScript
 RUN npm run build
 
 EXPOSE 4000
