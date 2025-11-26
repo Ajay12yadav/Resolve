@@ -1,28 +1,28 @@
-# 1. Use official Node.js image for build step
+# 1. Build step with Vite
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# 2. Copy package.json and package-lock.json
-COPY package*.json ./
+# Pass API URL into the build
+ARG VITE_API_URL
+ENV VITE_API_URL=${VITE_API_URL}
 
-# 3. Install dependencies
+# Install dependencies
+COPY package*.json ./
 RUN npm install
 
-# 4. Copy the rest of the frontend code
+# Copy code
 COPY . .
 
-# 5. Build the frontend (Vite)
+# Build Vite app using correct API URL
 RUN npm run build
 
-# 6. Use official nginx image for serving static files
+# 2. Nginx serve step
 FROM nginx:alpine
 
-# 7. Copy built files from builder
+# Copy build output
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# 8. Expose port 80
 EXPOSE 80
 
-# 9. Start nginx
 CMD ["nginx", "-g", "daemon off;"]

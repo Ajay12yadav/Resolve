@@ -1,26 +1,26 @@
-# 1. Use official Node.js image
-FROM node:20-alpine
+# Use Debian-based Node image (not Alpine!)
+FROM node:20-slim
 
-# 2. Set working directory
 WORKDIR /app
 
-# 3. Copy package.json and package-lock.json
+# Install OpenSSL (required for Prisma)
+RUN apt-get update && apt-get install -y openssl
+
+# Copy package.json
 COPY package*.json ./
 
-# 4. Install dependencies
+# Install dependencies
 RUN npm install
 
-# 5. Copy the rest of the backend code
+# Copy backend source
 COPY . .
 
-# 6. Generate Prisma client
+# Generate Prisma client
 RUN npx prisma generate
 
-# 7. Build TypeScript
+# Build TypeScript
 RUN npm run build
 
-# 8. Expose port (change if your backend uses a different port)
 EXPOSE 4000
 
-# 9. Start the server
 CMD ["node", "dist/index.js"]
