@@ -1,17 +1,16 @@
-# Use Debian-based Node.js image instead of Alpine
-FROM node:20
+FROM node:20-slim
 
 WORKDIR /app
+
+RUN apt-get update && apt-get install -y openssl
 
 COPY package*.json ./
 RUN npm install
 
 COPY . .
 
-# Generate Prisma client
 RUN npx prisma generate
 
-# Build TypeScript
 RUN npm run build
 
 EXPOSE 4000
